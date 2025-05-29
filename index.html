@@ -61,15 +61,15 @@
     <div id="mbi-items" class="w-full max-w-md space-y-4 mx-auto">
       <!-- MBI Items will be dynamically generated -->
     </div>
-    <div class="fixed bottom-0 left-0 right-0 bg-green-100 p-4 flex flex-col justify-center items-center space-y-2 border-t border-gray-300">
-      <span class="text-xl font-semibold">Total Score: <span id="total-score">0</span>/100</span>
-      <div id="status-dots" class="flex space-x-2">
-        <!-- Status dots will be dynamically generated -->
+    <div class="fixed bottom-0 left-0 right-0 bg-green-100 p-4 flex items-center justify-center space-x-4 border-t border-gray-300">
+      <div class="flex flex-col items-center">
+        <span class="text-lg font-semibold">Total Score: <span id="total-score">0</span>/100</span>
+        <div id="status-dots" class="flex space-x-1 mt-1">
+          <!-- Status dots will be dynamically generated -->
+        </div>
       </div>
-      <div class="flex space-x-4">
-        <button onclick="resetMBI()" class="bg-red-500 text-white px-4 py-2 rounded-lg shadow hover:bg-red-600 transition">Reset</button>
-        <button onclick="showHome()" class="bg-gray-500 text-white px-4 py-2 rounded-lg shadow hover:bg-gray-600 transition">Return</button>
-      </div>
+      <button onclick="resetMBI()" class="bg-red-500 text-white px-4 py-2 rounded-lg shadow hover:bg-red-600 transition">Reset</button>
+      <button onclick="showHome()" class="bg-gray-500 text-white px-4 py-2 rounded-lg shadow hover:bg-gray-600 transition">Return</button>
     </div>
   </div>
 
