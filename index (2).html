@@ -1,0 +1,213 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Occupational Therapy Toolbox</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen">
+  <!-- Homepage -->
+  <div id="home-page" class="flex flex-col items-center justify-center min-h-screen bg-green-100">
+    <h1 class="text-4xl font-bold text-gray-800 mb-8 text-center">Occupational Therapy Tools</h1>
+    <div class="flex flex-col space-y-4">
+      <button onclick="showMBICalculator()" class="bg-blue-500 text-white px-6 py-3 rounded-lg shadow hover:bg-blue-600 transition text-lg">MBI Calculator</button>
+      <button onclick="showReadMe()" class="bg-blue-500 text-white px-6 py-3 rounded-lg shadow hover:bg-blue-600 transition text-lg">ReadMe</button>
+    </div>
+  </div>
+
+  <!-- MBI Calculator Page -->
+  <div id="mbi-page" class="hidden flex-col items-center min-h-screen bg-green-100 p-4">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">MBI-100 Calculator</h1>
+    <div id="mbi-items" class="w-full max-w-md space-y-4">
+      <!-- MBI Items will be dynamically generated -->
+    </div>
+    <div class="mt-6 text-xl font-semibold">
+      Total Score: <span id="total-score">0</span>/100
+    </div>
+    <div class="mt-6 flex space-x-4">
+      <button onclick="resetMBI()" class="bg-red-500 text-white px-4 py-2 rounded-lg shadow hover:bg-red-600 transition">Reset</button>
+      <button onclick="showHome()" class="bg-gray-500 text-white px-4 py-2 rounded-lg shadow hover:bg-gray-600 transition">Return</button>
+    </div>
+  </div>
+
+  <!-- ReadMe Page -->
+  <div id="readme-page" class="hidden flex-col items-center justify-center min-h-screen bg-green-100 p-4">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">About</h1>
+    <div class="text-lg text-gray-700 text-center max-w-md">
+      <p>Product of Occupational Therapy Department, Tai Po Hospital</p>
+      <p class="mt-4">Team member: Tay Tse</p>
+    </div>
+    <button onclick="showHome()" class="mt-6 bg-gray-500 text-white px-4 py-2 rounded-lg shadow hover:bg-gray-600 transition">Return</button>
+  </div>
+
+  <script>
+    // MBI-100 Configuration
+    const mbiItems = [
+      { id: 1, name: 'Feeding', scores: [0, 2, 5, 8, 10], score: 0 },
+      { id: 2, name: 'Grooming', scores: [0, 1, 3, 4, 5], score: 0 },
+      { id: 3, name: 'Dressing', scores: [0, 2, 5, 8, 10], score: 0 },
+      { id: 4, name: 'Toileting', scores: [0, 2, 5, 8, 10], score: 0 },
+      { id: 5, name: 'Bathing', scores: [0, 1, 3, 4, 5], score: 0 },
+      { id: 6, name: 'Bowel', scores: [0, 2, 5, 8, 10], score: 0 },
+      { id: 7, name: 'Bladder', scores: [0, 2, 5, 8, 10], score: 0 },
+      { id: 8, name: 'Transfer', scores: [0, 3, 8, 12, 15], score: 0 },
+      { id: 9, name: 'Ambulation', scores: [0, 3, 8, 12, 15], score: 0, isWheelchair: false },
+      { id: 10, name: 'Stairs', scores: [0, 2, 5, 8, 10], score: 0 }
+    ];
+
+    // State
+    let scores = mbiItems.map(item => item.score);
+    let scoreHistory = [];
+
+    // DOM Elements
+    const homePage = document.getElementById('home-page');
+    const mbiPage = document.getElementById('mbi-page');
+    const readMePage = document.getElementById('readme-page');
+    const mbiItemsContainer = document.getElementById('mbi-items');
+    const totalScoreElement = document.getElementById('total-score');
+
+    // Toggle Ambulation/Wheelchair
+    function toggleMobilityMode() {
+      const mobilityItem = mbiItems[8]; // Item 9 (index 8)
+      mobilityItem.isWheelchair = !mobilityItem.isWheelchair;
+      mobilityItem.name = mobilityItem.isWheelchair ? 'Wheelchair' : 'Ambulation';
+      mobilityItem.scores = mobilityItem.isWheelchair ? [0, 1, 3, 4, 5] : [0, 3, 8, 12, 15];
+      scores[8] = 0; // Reset score when toggling
+      scoreHistory = scoreHistory.filter(action => action.itemIndex !== 8); // Clear history for this item
+      renderMBIItems();
+    }
+
+    // Initialize MBI Items
+    function renderMBIItems() {
+      mbiItemsContainer.innerHTML = '';
+      mbiItems.forEach((item, index) => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'border p-4 rounded-lg bg-gray-50';
+        let additionalButtons = '';
+        if (item.id === 9) { // Ambulation/Wheelchair toggle
+          additionalButtons = `
+            <button onclick="toggleMobilityMode()" class="mt-2 bg-green-500 text-white px-2 py-1 rounded">
+              Switch to ${item.isWheelchair ? 'Ambulation' : 'Wheelchair'}
+            </button>
+          `;
+        }
+        const showScoreButtons = scores[index] === 0;
+        itemDiv.innerHTML = `
+          <div class="flex justify-between items-center">
+            <span class="font-bold">${item.name}</span>
+            <span class="font-bold">Score: ${scores[index]}</span>
+          </div>
+          <div class="mt-2 flex flex-wrap gap-2">
+            ${showScoreButtons ? item.scores.map(score => `
+              <button
+                onclick="setScore(${index}, ${score})"
+                class="bg-blue-500 text-white px-2 py-1 rounded ${scores[index] === score ? 'bg-blue-700' : ''}"
+              >${score}</button>
+            `).join('') : ''}
+          </div>
+          ${scores[index] !== 0 ? `<button onclick="undoScore(${index})" class="mt-2 bg-yellow-500 text-white px-2 py-1 rounded">Undo</button>` : ''}
+          ${additionalButtons}
+        `;
+        mbiItemsContainer.appendChild(itemDiv);
+      });
+      updateTotalScore();
+    }
+
+    // Set Score for an Item
+    function setScore(itemIndex, score) {
+      scoreHistory.push({ itemIndex, previousScore: scores[itemIndex] });
+      scores[itemIndex] = score;
+      renderMBIItems();
+    }
+
+    // Undo Score for an Item
+    function undoScore(itemIndex) {
+      const lastAction = scoreHistory.filter(action => action.itemIndex === itemIndex).pop();
+      if (lastAction) {
+        scores[itemIndex] = lastAction.previousScore;
+        scoreHistory = scoreHistory.filter(action => action !== lastAction);
+        renderMBIItems();
+      }
+    }
+
+    // Reset All Scores
+    function resetMBI() {
+      scores = mbiItems.map(() => 0);
+      scoreHistory = [];
+      mbiItems[8].isWheelchair = false;
+      mbiItems[8].name = 'Ambulation';
+      mbiItems[8].scores = [0, 3, 8, 12, 15];
+      renderMBIItems();
+    }
+
+    // Update Total Score
+    function updateTotalScore() {
+      const total = scores.reduce((sum, score) => sum + score, 0);
+      totalScoreElement.textContent = total;
+    }
+
+    // Navigation
+    function showMBICalculator() {
+      homePage.classList.add('hidden');
+      mbiPage.classList.remove('hidden');
+      readMePage.classList.add('hidden');
+      renderMBIItems();
+    }
+
+    function showHome() {
+      mbiPage.classList.add('hidden');
+      readMePage.classList.add('hidden');
+      homePage.classList.remove('hidden');
+    }
+
+    function showReadMe() {
+      homePage.classList.add('hidden');
+      mbiPage.classList.add('hidden');
+      readMePage.classList.remove('hidden');
+    }
+
+    // Initial Render
+    renderMBIItems();
+  </script>
+</body>
+</html>
